@@ -1,6 +1,7 @@
 # Bitácora de trabajo
 
 ## 2026-11-17
+## Minireto 1: Primer tueste: el repositorio y los datos
 - Se creó esta bitácora para registrar cada cambio del proyecto.
 - Se revisó la estructura inicial del repositorio y se confirmó que el proyecto está en un estado base con archivos principales en `src/`.
 - `src/datos.js`: se representaron las 12 ventas de la tabla y se exportaron como `ventas`.
@@ -25,3 +26,102 @@
 - **Cantidad igual a cero:** el registro con `id` 8 tiene `cantidad: 0`, por lo que no representa unidades vendidas aunque esté en la tabla de ventas. **Decisión:** no eliminar ni cambiar el dato sin confirmar la fuente; marcarlo para revisión y excluirlo de cálculos de unidades efectivamente vendidas hasta aclararlo.
 - **Códigos de cliente repetidos:** `C01`, `C02` y `C03` aparecen en más de una venta. Esto puede ser legítimo porque un cliente puede comprar varias veces, pero podría confundirse con duplicación de registros. **Decisión:** mantener cada venta como registro independiente y no deduplicar por `cliente`; verificar duplicados usando el identificador de venta (`id`) y el resto de los datos.
 - **Clientes sin catálogo de referencia:** los códigos `C01`–`C08` no incluyen información que permita validar a qué cliente corresponde cada código. **Decisión:** conservarlos como identificadores opacos y solicitar un catálogo de referencia solo si se necesita validar o enriquecer la identidad del cliente.
+
+## Minireto 2: Los números del día: recorrer, filtrar y acumular
+
+**Regla de validación:** recorrer cada registro de `ventas`. Si `cantidad` no es numérica o es negativa, o `precio` no es numérico o es negativo, marcar el registro para revisión y no incluirlo en los indicadores. Si `cantidad` es `0`, marcarlo para revisión y excluirlo de los cálculos como venta sin unidades. Una fila válida con cantidad mayor que cero cuenta como una compra, incluso si comparte código de cliente con otra fila.
+
+### Venta total (ingresos)
+
+```text
+iniciar totalVentas en 0
+recorrer cada venta con un ciclo
+  si la venta pasa la regla de validación
+    calcular subtotal = cantidad * precio
+    acumular subtotal en totalVentas
+mostrar totalVentas
+```
+
+### Unidades vendidas
+
+```text
+iniciar totalUnidades en 0
+recorrer cada venta con un ciclo
+  si la venta pasa la regla de validación
+    acumular cantidad en totalUnidades
+mostrar totalUnidades
+```
+
+### Venta más grande por transacción
+
+```text
+iniciar ventaMayor en null
+iniciar registroVentaMayor en null
+recorrer cada venta con un ciclo
+  si la venta pasa la regla de validación
+    calcular subtotal = cantidad * precio
+    si ventaMayor es null o subtotal > ventaMayor
+      asignar subtotal a ventaMayor
+      guardar la venta actual en registroVentaMayor
+si ventaMayor sigue en null
+  informar que no hay ventas válidas para comparar
+si no
+  mostrar ventaMayor y registroVentaMayor
+```
+
+### Ticket promedio por compra
+
+```text
+iniciar totalTickets en 0
+iniciar cantidadCompras en 0
+recorrer cada venta con un ciclo
+  si la venta pasa la regla de validación
+    calcular subtotal = cantidad * precio
+    acumular subtotal en totalTickets
+    incrementar cantidadCompras en 1
+si cantidadCompras es mayor que 0
+  calcular ticketPromedio = totalTickets / cantidadCompras
+  mostrar ticketPromedio
+si no
+  informar que no se puede calcular porque no hay compras válidas
+```
+
+**Criterio del ticket promedio:** cada fila válida representa una compra; no se agrupan ni se cuentan clientes únicos. La venta más grande se compara por el subtotal de la transacción (`cantidad * precio`), no solo por el precio unitario.
+
+- `src/analitica.js`: se creó y exportó `valorVenta(venta)`, que calcula el subtotal de una venta multiplicando `cantidad` por `precio`, como función reutilizable para los indicadores.
+- `src/analitica.js`: se añadieron `totalVendido(ventas)`, `unidadesVendidas(ventas)` y `ventaMayor(ventas)` usando ciclos `for...of`. Las tres excluyen registros con cantidad cero, cantidades o precios no numéricos y valores negativos; `ventaMayor` devuelve el registro completo o `null` si no encuentra ventas válidas.
+- `src/analitica.js`: se añadió y exportó `ticketPromedio(ventas)`, que acumula el valor de cada venta válida y lo divide entre la cantidad de ventas válidas (cantidad mayor que cero); devuelve `null` cuando no hay ventas válidas para evitar división por cero.
+- `src/analitica.js`: se añadió y exportó `ventasPorCiudad(ventas, ciudad)`, que suma el valor de las ventas válidas de la ciudad solicitada. La comparación ignora diferencias de mayúsculas, espacios al inicio o al final y espacios consecutivos; si la ciudad buscada no es texto o queda vacía, devuelve `0`.
+
+### Pruebas por tamaño de entrada y criterio para arreglo vacío
+
+Se probaron las funciones que reciben el arreglo de ventas con el arreglo completo, un arreglo de un solo elemento (`ventas[0]`) y un arreglo vacío. Para `ventasPorCiudad` se consultó `Medellín` en los tres casos.
+
+| Entrada | `totalVendido` | `unidadesVendidas` | `ventaMayor` | `ticketPromedio` | `ventasPorCiudad(..., "Medellín")` |
+|---|---:|---:|---|---:|---:|
+| Arreglo completo | `985000` | `21` | Registro `id: 10` | `89545.45` aprox. | `356000` |
+| Un elemento (`id: 1`) | `84000` | `2` | Registro `id: 1` | `84000` | `84000` |
+| Arreglo vacío | `0` | `0` | `null` | `null` | `0` |
+
+**Decisión para entradas vacías:** los acumuladores (`totalVendido`, `unidadesVendidas` y `ventasPorCiudad`) devuelven `0`; `ventaMayor` devuelve `null` porque no hay un registro que retornar; `ticketPromedio` devuelve `null` porque el promedio no está definido sin ventas y no se debe dividir entre cero. `valorVenta` recibe una venta individual, no un arreglo, por lo que se probó aparte con `ventas[0]` y devolvió `84000`.
+
+### Verificación manual con tabla de traza
+
+Se recorrieron las ventas en orden. Para cada cantidad mayor que cero se calculó `cantidad × precio`, se sumó al acumulado y se contó una venta válida. El registro `id: 8`, con cantidad `0`, se excluye según la regla definida.
+
+| ID | Operación manual | Subtotal incluido | Acumulado de ventas | Ventas válidas acumuladas |
+|---:|---|---:|---:|---:|
+| 1 | `2 × 42000` | `84000` | `84000` | 1 |
+| 2 | `1 × 26000` | `26000` | `110000` | 2 |
+| 3 | `1 × 95000` | `95000` | `205000` | 3 |
+| 4 | `1 × 42000` | `42000` | `247000` | 4 |
+| 5 | `3 × 45000` | `135000` | `382000` | 5 |
+| 6 | `2 × 26000` | `52000` | `434000` | 6 |
+| 7 | `1 × 120000` | `120000` | `554000` | 7 |
+| 8 | Cantidad `0`: se excluye | `—` | `554000` | 7 |
+| 9 | `2 × 45000` | `90000` | `644000` | 8 |
+| 10 | `4 × 42000` | `168000` | `812000` | 9 |
+| 11 | `1 × 95000` | `95000` | `907000` | 10 |
+| 12 | `3 × 26000` | `78000` | `985000` | 11 |
+
+El cálculo manual da **total vendido = 985000** y **11 ventas válidas**; por tanto, `ticketPromedio = 985000 / 11 = 89545.4545…` (aprox. `89545.45`). La ejecución del programa devolvió `totalVendido(ventas) = 985000` y `ticketPromedio(ventas) = 89545.45454545454`, coincidiendo con la traza manual.
