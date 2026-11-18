@@ -125,3 +125,35 @@ Se recorrieron las ventas en orden. Para cada cantidad mayor que cero se calcul�
 | 12 | `3 × 26000` | `78000` | `985000` | 11 |
 
 El cálculo manual da **total vendido = 985000** y **11 ventas válidas**; por tanto, `ticketPromedio = 985000 / 11 = 89545.4545…` (aprox. `89545.45`). La ejecución del programa devolvió `totalVendido(ventas) = 985000` y `ticketPromedio(ventas) = 89545.45454545454`, coincidiendo con la traza manual.
+
+## 2026-11-18
+## Minireto 3: indicadores con métodos de arreglo
+
+- Antes de modificar, se verificó que las versiones con ciclos `totalVendido`, `unidadesVendidas` y `ventasPorCiudad` ya existían, pero sus equivalentes con sufijo `M` no estaban implementados.
+- `src/analitica.js`: se añadieron y exportaron `totalVendidoM`, `unidadesVendidasM` y `ventasPorCiudadM`, construidas con `filter`, `map` y `reduce`. Reutilizan la misma validación de venta y, en el caso de ciudad, la misma normalización que las funciones con ciclos.
+- Se compararon, con igualdad estricta, cada versión `M` y su ciclo para el arreglo completo, un arreglo de un elemento y un arreglo vacío. También se compararon ventas por ciudad para `Medellín`, incluyendo espacios sobrantes y variación de mayúsculas. Todos los pares devolvieron exactamente el mismo resultado: total general `985000`, unidades `21`, total de Medellín `356000`; para arreglo vacío, `0` en los tres indicadores.
+- `src/verificar.js`: se creó un ejecutable que invoca ambas versiones de cada indicador con los mismos datos y muestra `OK` o `DIFERENTE`. Compara total y unidades, además de ventas por ciudad para Medellín (incluyendo espacios y mayúsculas), Bogotá, Cali y Pereira; ejecuta los casos con ventas completas, una venta y arreglo vacío, y termina con código de error si algún par no coincide.
+
+### Agrupaciones y rankings de ventas
+
+- `totalPorCiudad(ventas)`
+  - **¿Qué recorro?** Cada registro de venta.
+  - **¿Qué filtro?** Solo ventas válidas con ciudad de texto no vacía.
+  - **¿Qué transformo?** Normalizo la ciudad quitando espacios sobrantes, reduciendo espacios consecutivos e ignorando mayúsculas; el nombre de salida conserva la primera forma legible encontrada.
+  - **¿Qué acumulo?** El subtotal (`cantidad × precio`) de cada venta válida.
+  - **¿Cómo agrupo?** En un objeto diccionario por ciudad normalizada, para que diferencias como `Bogotá` y `Bogotá ` pertenezcan al mismo grupo.
+- `unidadesPorProducto(ventas)`
+  - **¿Qué recorro?** Cada registro de venta.
+  - **¿Qué filtro?** Solo ventas válidas con nombre de producto de texto no vacío.
+  - **¿Qué transformo?** Tomo el nombre del producto y su cantidad; conservo el nombre tal como está en los datos.
+  - **¿Qué acumulo?** Las unidades (`cantidad`) vendidas.
+  - **¿Cómo agrupo?** En un objeto diccionario usando el nombre del producto como clave.
+- `topProductosPorValor(ventas, k)`
+  - **¿Qué recorro?** Cada registro de venta para construir los totales por producto.
+  - **¿Qué filtro?** Solo ventas válidas con nombre de producto de texto no vacío.
+  - **¿Qué transformo?** Cada venta válida a su subtotal (`cantidad × precio`) y los acumulados a elementos `{ producto, total }`.
+  - **¿Qué acumulo?** El dinero generado por las ventas de cada producto.
+  - **¿Cómo agrupo?** En un objeto diccionario por producto; después ordeno una lista nueva de mayor a menor total y tomo los primeros `k`, sin modificar el arreglo recibido. En empates, ordeno alfabéticamente por producto. `k` debe ser un entero no negativo; de lo contrario, se lanza `RangeError`.
+- Resultados comprobados con los datos actuales: por ciudad, Medellín `356000`, Bogotá `276000`, Cali `185000` y Pereira `168000`; por unidades, Huila `7`, Nariño `6`, Sierra `5`, Prensa francesa `2` y Molino manual `1`. El top 3 por valor es Huila (`294000`), Sierra (`225000`) y Prensa francesa (`190000`).
+- Se comprobó que `topProductosPorValor` no modifica el arreglo original, que `k = 0` devuelve una lista vacía, que un `k` mayor al número de productos devuelve todos y que `k` negativo o fraccionario produce `RangeError`.
+- Se ejecutó `node src/verificar.js`: todos los pares ciclo/métodos mostraron `OK` para los datos completos, una venta y el arreglo vacío.
