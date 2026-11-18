@@ -157,3 +157,28 @@ El cálculo manual da **total vendido = 985000** y **11 ventas válidas**; por t
 - Resultados comprobados con los datos actuales: por ciudad, Medellín `356000`, Bogotá `276000`, Cali `185000` y Pereira `168000`; por unidades, Huila `7`, Nariño `6`, Sierra `5`, Prensa francesa `2` y Molino manual `1`. El top 3 por valor es Huila (`294000`), Sierra (`225000`) y Prensa francesa (`190000`).
 - Se comprobó que `topProductosPorValor` no modifica el arreglo original, que `k = 0` devuelve una lista vacía, que un `k` mayor al número de productos devuelve todos y que `k` negativo o fraccionario produce `RangeError`.
 - Se ejecutó `node src/verificar.js`: todos los pares ciclo/métodos mostraron `OK` para los datos completos, una venta y el arreglo vacío.
+
+## Minireto 4: reporte de negocio y depuración
+
+- `src/reporte.js`: se integraron el resumen general, las ventas por ciudad, las unidades por producto, el top 3 por valor y resúmenes para `2026-09-01` (con ventas) y `2026-09-07` (sin ventas). Los importes se presentan en pesos colombianos con `toLocaleString("es-CO")`, con etiquetas alineadas y una indicación explícita de ticket no aplicable cuando no hay ventas válidas.
+- `src/analitica.js`: se añadió `ventasDelDia(ventas, fecha)`, que devuelve los registros de la fecha solicitada, sin descartar registros con cantidad cero para que sigan disponibles para revisión. Una fecha no textual o vacía devuelve `[]`.
+- `README.md`: se explicó el propósito del proyecto, los comandos para ejecutarlo y las preguntas de negocio que responde.
+
+### Depuración del problema: una ciudad aparece duplicada
+
+- **Síntoma:** una ciudad como Bogotá aparece en dos grupos separados.
+- **Entrada que lo produce:** dos registros equivalentes con `ciudad: "Bogotá"` y `ciudad: "Bogotá "`.
+- **Hipótesis:** el agrupamiento usa el valor crudo como clave y no elimina los espacios sobrantes.
+- **Prueba realizada:** se agrupó ese par con una implementación de referencia que usa directamente `totales[venta.ciudad]`; genera dos claves (`"Bogotá"` y `"Bogotá "`). Luego se pasó la misma entrada a `totalPorCiudad`; normaliza ambas claves y produce un único grupo con el total combinado.
+- **Causa:** las cadenas con espacio final son claves distintas en un objeto de JavaScript.
+- **Corrección:** `totalPorCiudad` agrupa por el nombre normalizado (espacios recortados y colapsados, y comparación sin distinguir mayúsculas), conservando una etiqueta legible para mostrar.
+
+### Depuración del problema: ticket promedio `NaN` en un día sin ventas
+
+- **Síntoma:** el ticket promedio aparece como `NaN` al consultar una fecha sin ventas.
+- **Entrada que lo produce:** el arreglo vacío devuelto por `ventasDelDia(ventas, "2026-09-07")`.
+- **Hipótesis:** se divide el total entre el número de ventas sin comprobar si el divisor es cero.
+- **Prueba realizada:** la operación ingenua `totalVendido(diaSinVentas) / diaSinVentas.length` produce `NaN` (`0 / 0`). `ticketPromedio(diaSinVentas)` devuelve `null`, y el reporte lo presenta como “No aplica (sin ventas válidas)”, sin imprimir `NaN`.
+- **Causa:** no hay ventas válidas para definir el promedio y la división `0 / 0` no tiene resultado numérico.
+- **Corrección:** `ticketPromedio` retorna `null` si no encuentra ventas válidas; el reporte comprueba explícitamente ese valor antes de formatear el importe. La misma protección se aplica al promedio del día sin ventas.
+- **Verificación final:** `node src/reporte.js` presentó los resúmenes general, por ciudad, por producto y de ambos días. Se comprobó que la salida no contiene `NaN` ni `undefined` y que cada ciudad normalizada aparece en un solo grupo. `node src/verificar.js` terminó correctamente con todos los pares en `OK`; `git diff --check` no reportó problemas.
