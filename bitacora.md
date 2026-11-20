@@ -85,6 +85,11 @@ si cantidadCompras es mayor que 0
 si no
   informar que no se puede calcular porque no hay compras válidas
 ```
+Algoritmo PSeInt
+
+En ese recorrido, `totalVentas` acumula los subtotales, `totalUnidades` acumula las cantidades, `mayorVenta` conserva el máximo y `cantidadCompras` funciona como contador para el promedio. La bandera `hayVentasValidas` permite detectar que no existe máximo cuando no se encontró ninguna compra válida.
+
+Con los valores de ejemplo, el algoritmo debe mostrar total vendido `985000`, unidades `21`, venta mayor `168000` (registro 10) y ticket promedio `89545.4545...`.
 
 **Criterio del ticket promedio:** cada fila válida representa una compra; no se agrupan ni se cuentan clientes únicos. La venta más grande se compara por el subtotal de la transacción (`cantidad * precio`), no solo por el precio unitario.
 
